@@ -3,7 +3,7 @@ package Data::JavaScript::LiteObject;
   \&Data::JavaScript::LiteObject::jsodump;
 use strict;
 use vars qw($VERSION);
-$VERSION = '1.02';
+$VERSION = '1.03';
 
 sub jsodump {
   my %opts = @_;
@@ -26,7 +26,7 @@ sub jsodump {
     }
     else{
       @keys = sort { $a cmp $b } keys
-	%{$opts{dataRef}->{(each%{$opts{dataRef}})[0]}};
+	%{$opts{dataRef}->{(sort keys %{$opts{dataRef}})[0]}};
     }
   }
   else{

@@ -38,5 +38,5 @@ foreach my $k ( sort {$a <=> $b } keys %tests ){
 				  %{$tests{$k}}
 				 ));
   print "not " unless $_ eq $results[$k];
-  print "ok\n";
+  print "ok $k\n";
 }

@@ -1,3 +1,10 @@
+1.03	Sat Jul 27 08:25:54 UTC 2002
+	Fixed tests, they were missing the numbers for 2-5
+
+	Reworked an algorythm for picking which object to use as
+	a template when attributes is not specified. This is slightly
+	more expensive, but required for compatability.
+
 1.02	Sat Jul 27 01:39:21 UTC 2002
 	Ugh, it was old crufty code.
         It's now had a liberal application of Naval jelly and Bondo
