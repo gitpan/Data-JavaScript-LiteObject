@@ -3,5 +3,14 @@ LiteObject.pm
 MANIFEST
 README
 Makefile.PL
-test.pl
+t/loh.t
+t/loh.2
+t/loh.3
+t/loh.4
+t/loh.5
+t/hoh.t
+t/hoh.2
+t/hoh.3
+t/hoh.4
+t/hoh.5
 example.pl

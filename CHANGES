@@ -1,2 +1,19 @@
-1.00  06-Aug-2000  Initial release
-1.01  25-Sep-2000  Added attributes, to explicitly specify what data is dumped
+1.02	Sat Jul 27 01:39:21 UTC 2002
+	Ugh, it was old crufty code.
+        It's now had a liberal application of Naval jelly and Bondo
+
+	Documentation fix, changed all references of jsdump to jsodump
+
+	Documentation fix, wrote examples that actually work
+
+	Documentation fix, removed CAVEATS
+
+	Fixed $VERSION
+
+	Robustified test suite
+
+1.01	25-Sep-2000 
+	Added attributes, to explicitly specify what data is dumped
+
+1.00	06-Aug-2000
+	Initial release

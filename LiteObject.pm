@@ -1,101 +1,111 @@
 package Data::JavaScript::LiteObject;
-local $^W = 0; #cheat, to bypass warning about uninitialized var below...
-*{"${@{[caller()]}}::jsodump"} = \&{"Data::JavaScript::LiteObject::jsodump"};
+*{"@{[scalar caller()]}::jsodump"} =
+  \&Data::JavaScript::LiteObject::jsodump;
 use strict;
 use vars qw($VERSION);
-$VERSION = '1.00';
+$VERSION = '1.02';
 
 sub jsodump {
-    my %opts = (@_);
-    my(@keys, $obj, @objs, $EOL, $EOI, @F);
+  my %opts = @_;
+  my(@keys, $obj, @objs, $EOL, $EOI, @F);
 
-    unless( $opts{protoName} && $opts{dataRef} ){
-	warn("// Both protoName and dataRef must be supplied");
-	return; }
+  unless( $opts{protoName} && $opts{dataRef} ){
+    return warn("// Both protoName and dataRef must be supplied");
+  }
 
+  ($EOI, $EOL) = $opts{explode} ? ("$/\t")x2 : ('', ' ');
 
-    if( $opts{explode} ){
-	$EOI = $EOL = "\n\t"; }
-    else{
-	$EOI = '';
-	$EOL = " "; }
-
-
-    if( ref($opts{dataRef}) eq "ARRAY" ){
-	my %F;
-	for(my $i=0; $i < scalar @{$opts{dataRef}}; $i++){
-		$F{"$opts{protoName}$i"} = $opts{dataRef}->[$i]; }
-	$opts{dataRef} = \%F; }
-    if( ref($opts{dataRef}) eq "HASH" ){
-	if( ref($opts{attributes}) eq "ARRAY" ){
-	    @keys = @{$opts{attributes}}; }
-	else{
-	    @keys = sort { $a cmp $b } keys %{$opts{dataRef}->{(each%{$opts{dataRef}})[0]}}; }
+  if( ref($opts{dataRef}) eq "ARRAY" ){
+    my $i=0;
+    $opts{dataRef} =  {map {$opts{protoName}.$i++=>$_} @{$opts{dataRef}} };
+  }
+  #NOT elsif
+  if( ref($opts{dataRef}) eq "HASH" ){
+    if( ref($opts{attributes}) eq "ARRAY" ){
+      @keys = @{$opts{attributes}};
     }
     else{
-	warn("// Unknown reference type"); return; }
-
-    push @F, "function $opts{protoName} (", join(', ', @keys) ,") {\n\t";
-    push @F, map("this.$_ = $_;$EOL", @keys);    
-    push @F, "}\n";
-
-    foreach $obj ( sort{ $a cmp $b } keys %{$opts{dataRef}} ){
-	push @F, "$obj = new $opts{protoName}($EOI";
-	my $k=1;
-	foreach my $key ( @keys ) {
-	    my $delim = $k++ < scalar @keys ? ',' : '';
-	    
-	    if( ref($opts{dataRef}->{$obj}->{$key}) eq "ARRAY" ){
-		push @F, "new Array(",
-		 join(',', map(datum($_), @{$opts{dataRef}->{$obj}->{$key}})) ,")$delim$EOL"; }
-	    else{
-		push @F, datum($opts{dataRef}->{$obj}->{$key}), "$delim$EOL"; }
-	}
-	push @F, ");\n";
-	push @objs, $obj;
+      @keys = sort { $a cmp $b } keys
+	%{$opts{dataRef}->{(each%{$opts{dataRef}})[0]}};
     }
+  }
+  else{
+    warn("// Unknown reference type, attributes"); return;
+  }
 
-    if( defined($opts{listObjects}) ){
-	push @F, "$opts{listObjects} = new Array($EOI",
-	 join(",$EOL", map("'$_'", @objs)), ");\n"; }
+  push @F, "function $opts{protoName} (", join(', ', @keys) ,") {$/\t";
+  push @F, map("this.$_ = $_;$EOL", @keys);  
+  push @F, "}$/";
 
-    if( $opts{lineIN} ){
-	local $. = $opts{lineIN}+1;
-	@F = split(/\n/, join('', @F));
-	foreach my $line ( @F ){
-	    $.++;
-	    if( ($.-$opts{lineIN}) %5 == 0){
-		$.++;
-		$line =~ s%$%\n// $.\n%; }
-	    else{
-		$line =~ s%$%\n%; }
-	}
-	${$opts{lineOUT}} = $.;
-	unshift @F, "// ".($opts{lineIN}+1)."\n";
+  foreach $obj ( sort keys %{$opts{dataRef}} ){
+    push @F, "$obj = new $opts{protoName}($EOI";
+    push @F, join(",$EOL",
+		  map(datum($opts{dataRef}->{$obj}->{$_}), @keys) ).$EOL;
+    push @F, ");$/";
+    push @objs, $obj;
+  }
+
+  if( defined($opts{listObjects}) ){
+    push @F, "$opts{listObjects} = new Array($EOI",
+      join(",$EOL", map("'$_'", @objs)), ");$/";
+  }
+
+  if( defined($opts{lineIN}) ){
+    local $. = $opts{lineIN}+1;
+    @F = split($/, join('', @F));
+    foreach ( @F ) {
+      $_ .= $/ . '// '. ++$. unless (++$.-$opts{lineIN}) %5;
+      $_ .= $/;
     }
-    return @F;
+    ${$opts{lineOUT}} = $.;
+    unshift @F, '// '. ($opts{lineIN}+1) .$/;
+  }
+  return @F;
 }
 
 sub datum {
-    my $val = shift();
-    if( $val !~ /^-?(?:\d+(?:\.\d*)?|\.\d+)$/ ){
-	$val =~ s/'/\\'/g;
-	return qq('$val'); }
-    return $val;
+  local $_ = shift() || '';
+  my $val;
+
+  if ( ref eq "ARRAY" ) {
+    $val =
+      "new Array(" . join(',',
+			  map /^-?(?:\d+(?:\.\d*)?|\.\d+)$/ ?
+			  $_ : do{ s/'/\\'/g; qq('$_') }, @{$_})
+	. ")";
+  }
+  elsif( $val = $_, $val !~ /^-?(?:\d+(?:\.\d*)?|\.\d+)$/ ){
+    s/'/\\'/g;
+    $val = qq('$_');
+  }
+
+  return $val;
 }
 
 1;
 __END__
 
+=pod
+
 =head1 NAME
 
-Data::JavaScript::LiteObject - Perl package to provide lightweight data dumping
+Data::JavaScript::LiteObject - lightweight data dumping to JavaScript
 
 =head1 SYNOPSIS
 
     use Data::JavaScript:LiteObject;
 
-    jsodump("user", \%users);
+    %A = (protein      => 'bacon',
+          condiments   => 'mayonaise',
+          produce      => [qw(lettuce tomato)]);
+    %B = (protein      => 'peanut butter',
+          condiments   => 'jelly');
+    @lunch             = (\%A, \%B);
+    %lunch             = (BLT=>\%A, PBnJ=>\%B);
+
+    jsodump(protoName  => "sandwich",
+            dataRef    => \%lunch
+            attributes => [qw(condiments protein produce)]);
 
 =head1 DESCRIPTION
 
@@ -106,12 +116,9 @@ seems is a likely use for this kind of feature. So this module was
 created to provide a lightweight means of producing configurable, clean
 and compact output.
 
-B<LiteObject> is used to format and output an array or hash of objects;
-that is hash references. The referenced hashes may contain values that
-are scalars, or references to arrays containing scalars.
-
-B<LiteObject> contains one function; jsodump; which takes a list of named
-parameters. Two of which are required, the rest being optional.
+B<LiteObject> is used to format and output loh, hoh, lohol, and hohol.
+One function, B<jsodump>, is exported. B<jsodump> accepts a list of named
+parameters; two of these are required and the rest are optional.
 
 =head2 Required parameters
 
@@ -123,7 +130,7 @@ The name to be used for the prototype object function.
 
 =item C<dataRef>
 
-A reference to an array or hash of hashes to dump.
+A reference to an array of hashes(loh) or hash of hashes(hoh) to dump.
 
 =back
 
@@ -134,96 +141,76 @@ A reference to an array or hash of hashes to dump.
 =item C<attributes>
 
 A reference to an array containing a list of the object attributes
-(hash keys). This is useful if every object does not necessarily
-posses a value for each attributes; C<exists> fails. e.g.
-
-        %A = (a=>1, z=>26);
-        %B = (b=>2, y=>25);
-
-        jsodump("example", \(%A, %B), \('a', 'b', 'y', 'z'));
-
-This could also be used to explicitly prevent certain data from being dumped.
+(hash keys). This is useful if every object is not guaranteed to
+posses a value for each attribute.
+It could also be used to exclude data from being dumped.
 
 =item C<explode>
 
-The default; false; produces output with one I<object> per line.
-If true, the output is one I<attribute> per line.
+A scalar, if true output is one I<attribute> per line.
+The default; false; is one I<object> per line.
 
 =item C<lineIN>
 
-If true, output is numbered every 5 lines. The value provided
+A scalar, if true output is numbered every 5 lines. The value provided
 should be the number of lines printed before this output.
 For example if a CGI script included:
 
-    C<print q(<html>
+    print q(<html>
 	    <head>
 	    <title>Pthbb!!</title>
 	    <script language=javascript>);>
-    jsdump(protoName=>"object", dataRef=>\@objects, lineIN=>4);
+    jsodump(protoName  => "sandwich",
+            dataRef    => \@lunch,
+            lineIN     => 4);
 
-The client might see:
+The client would see:
 
     <html>
     <head>
     <title>Pthbb!!</title>
     <script language=javascript>
     // 5
-    function object (x, y, z) {
-            this.x = x; this.y = y; this.z = z; }
-    object0 = new object(1, 0, 0 );
-    object1 = new object(0, 1, 0 );
+    function sandwich (condiment, produce, protein) {
+            this.condiment = condiment; this.produce = produce; this.protein = protein; }
+    BLT = new sandwich('mayonaise', new Array('lettuce','tomato'), 'bacon' );
+    PBnJ = new sandwich('jelly', '', 'peanut butter' );
     // 10
-    object2 = new object(0, 0, 1 );
 
 making it easier to read and/or debug.
 
 =item C<lineOUT>
 
-A scalar reference. jsodump will set it's value to the number of the last
-line of numbered output produced when lineIN is specified. This way you
-may pass the scalar to a subsequent call to jsdump as the value of lineIn
-for continuous numbering.
+A reference to a scalar. B<jsodump> will set the scalar's value to the number
+of the last line of numbered output produced when lineIN is specified. Thus
+you may pass the scalar to a subsequent call to B<jsodump> as the value of
+lineIn for continuous numbering.
 For example:
 
-    C<jsdump(protoName=>"object", dataRef=>\@objects, lineIN=>4, lineOUT=>\$.);>
-
-    ...
-
-    C<jsdump(protoName=>"object", dataRef=>\@objects, lineIN=>$.);>
+    jsodump(protoName  => "sandwich",
+              dataRef  => \@lunch,
+              lineIN   => 4,
+              lineOUT  => \$.);
+    jsodump(protoName  => "sandwich",
+              dataRef  => \%lunch,
+              lineIN   => $.);
 
 =item C<listObjects>
 
-If true, the parameters value is used as the name of an array to be output
-contaning a list of all the objects dumped. This way, your client side
-code need not know as much about the data, but simply to traverse an
-array of your choosing.
+A scalar, if true the parameters value is used as the name of an array to
+be output which will contain a list of all the dumped object.
+This allows data-ignorant client side code which need only
+traverse the named array.
 
-For example:
+    jsodump(protoName  => "sandwich",
+            dataRef    => \@lunch,
+            listObjects=> "sandwiches");
 
-    C<jsdump(protoName=>"object", dataRef=>\@objects, listObjects=>"objects");>
+would append the following to the output
 
-would return
-
-    objects = new Array('object0', 'object1', 'object2');
+    sandwiches = new Array('BLT', 'PBnJ');
 
 =back
-
-=head1 CAVEATS
-
-All of the objects in a given hash or array reference should contain
-the same keys. Explicit undefined values should be used for instances
-of an object that do not posess a certain value.
-For example:
-
-    C<%hash0 = (alpha=>undef, beta=>1);>
-    C<%hash1 = (beta=>1);>
-
-%hash0 is safe, since exists($hash0{alpha}) is true.
-However exists($hash1{alpha}) is false, and %hash1 would cause problems.
-
-Deep structures are not dumped. That is anything beyond a scalar or
-a scalar within an Array as an attribute value. It is not entirely
-clear that it's necessary, but if you require it L<SEE ALSO>
 
 =head1 BUGS
 
@@ -231,11 +218,11 @@ Nothing that am I aware of.
 
 =head1 SEE ALSO
 
-L<Data::JavaScript>
+L<Data::JavaScript>, L<Data::Dumper>
 
 =head1 AUTHOR
 
-Jerrad Pierce I<belg4mit@mit.edu>, I<webmaster@pthbb.org>.
+Jerrad Pierce I<jpierce@cpan.org>, I<webmaster@pthbb.org>.
 F<http://pthbb.org/>
 
 =cut
