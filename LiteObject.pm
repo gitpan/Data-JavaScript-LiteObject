@@ -1,9 +1,14 @@
 package Data::JavaScript::LiteObject;
-*{"@{[scalar caller()]}::jsodump"} =
-  \&Data::JavaScript::LiteObject::jsodump;
 use strict;
-use vars qw($VERSION);
-$VERSION = '1.03';
+use vars qw($VERSION $JSVER);
+$VERSION = '1.04';
+
+sub import{
+  no strict 'refs';
+  shift;
+  $JSVER = shift || 1.0;
+  *{"@{[scalar caller()]}::jsodump"} = \&jsodump;
+}
 
 sub jsodump {
   my %opts = @_;
@@ -68,11 +73,18 @@ sub datum {
   my $val;
 
   if ( ref eq "ARRAY" ) {
-    $val =
+    $val = $JSVER >= 1.2 ?
+      "[" . join(',',
+		 map /^-?(?:\d+(?:\.\d*)?|\.\d+)$/ ?
+		 $_ : do{ s/'/\\'/g; qq('$_') }, @{$_})
+	. "]"
+    :
+
       "new Array(" . join(',',
 			  map /^-?(?:\d+(?:\.\d*)?|\.\d+)$/ ?
 			  $_ : do{ s/'/\\'/g; qq('$_') }, @{$_})
 	. ")";
+
   }
   elsif( $val = $_, $val !~ /^-?(?:\d+(?:\.\d*)?|\.\d+)$/ ){
     s/'/\\'/g;
@@ -94,6 +106,8 @@ Data::JavaScript::LiteObject - lightweight data dumping to JavaScript
 =head1 SYNOPSIS
 
     use Data::JavaScript:LiteObject;
+    #OR
+    use Data::JavaScript:LiteObject '1.2';
 
     %A = (protein      => 'bacon',
           condiments   => 'mayonaise',
@@ -117,6 +131,11 @@ created to provide a lightweight means of producing configurable, clean
 and compact output.
 
 B<LiteObject> is used to format and output loh, hoh, lohol, and hohol.
+The output is JavaScript 1.0 compatible, with the limitation that none
+of the properties be a single-element array whose value is a number.
+To lift this limitation pass use the extra value I<'1.2'>, which will
+generate JavaScript 1.2 compatible output.
+
 One function, B<jsodump>, is exported. B<jsodump> accepts a list of named
 parameters; two of these are required and the rest are optional.
 

@@ -1,4 +1,4 @@
-Dump perl structures to JavaScript code.
+Dump perl structures to JavaScript; think Data::Dumper.
 
 Example 1:
 
