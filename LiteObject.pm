@@ -6,7 +6,7 @@ use vars qw($VERSION);
 $VERSION = '1.00';
 
 sub jsodump {
-    my %opts = (noMarker=>"X", @_);
+    my %opts = (@_);
     my(@keys, $obj, @objs, $EOL, $EOI, @F);
 
     unless( $opts{protoName} && $opts{dataRef} ){
@@ -27,7 +27,11 @@ sub jsodump {
 		$F{"$opts{protoName}$i"} = $opts{dataRef}->[$i]; }
 	$opts{dataRef} = \%F; }
     if( ref($opts{dataRef}) eq "HASH" ){
-	@keys = sort { $a cmp $b } keys %{$opts{dataRef}->{(each%{$opts{dataRef}})[0]}}; }
+	if( ref($opts{attributes}) eq "ARRAY" ){
+	    @keys = @{$opts{attributes}}; }
+	else{
+	    @keys = sort { $a cmp $b } keys %{$opts{dataRef}->{(each%{$opts{dataRef}})[0]}}; }
+    }
     else{
 	warn("// Unknown reference type"); return; }
 
@@ -126,6 +130,19 @@ A reference to an array or hash of hashes to dump.
 =head2 Optional parameters
 
 =over 4
+
+=item C<attributes>
+
+A reference to an array containing a list of the object attributes
+(hash keys). This is useful if every object does not necessarily
+posses a value for each attributes; C<exists> fails. e.g.
+
+        %A = (a=>1, z=>26);
+        %B = (b=>2, y=>25);
+
+        jsodump("example", \(%A, %B), \('a', 'b', 'y', 'z'));
+
+This could also be used to explicitly prevent certain data from being dumped.
 
 =item C<explode>
 
